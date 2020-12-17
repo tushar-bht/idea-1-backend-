@@ -10,13 +10,28 @@ const getAllUsers = async (req, res, next) => {
     response.forEach((doc) => {
       allUsers.push(doc.data());
     });
+    console.log(allUsers);
   } catch (err) {
     console.log(err);
     return next(err);
   }
+  res.json({ allUsers: allUsers });
 };
 //...................................................
-const createUser = async (req, res, next) => {};
+const createUser = async (req, res, next) => {
+  const userId = req.body.userId;
+  try {
+    const newUser = {
+      comments: [],
+      posts: [],
+    };
+    await db.collection("users").doc(userId).set(newUser);
+  } catch (err) {
+    console.log(err);
+    return next(err);
+  }
+  res.json({ message: "user created successfully" });
+};
 
 //...................................................
 

@@ -50,15 +50,17 @@ const createPost = async (req, res, next) => {
       dislikes: 0,
       creator: userId,
     };
-
-    const t = await db.runTransaction();
     const newPostRef = db.collection("posts").doc();
-    await t.set(newPostRef, newPost);
+    newPostRef.set(newPost);
+    await db.runTransaction(async (t) => {
+      await t.get(newPostRef);
 
-    await t.update(db.collection("users").doc(userId), {
-      posts: admin.firestore.FieldValue.arrayUnion(
-        db.doc("/posts/" + newPostRef.id)
-      ),
+      const userRef = db.collection("users").doc(userId);
+      await t.update(userRef, {
+        posts: admin.firestore.FieldValue.arrayUnion(
+          db.doc("/posts/" + newPostRef.id)
+        ),
+      });
     });
   } catch (err) {
     console.log(err);
@@ -91,24 +93,25 @@ const addCommentOnPostId = async (req, res, next) => {
     postId: postId,
   };
   try {
-    const t = await db.runTransaction();
+    await db.runTransaction(async (t) => {
+      const newCommentRef = db.collection("comments").doc();
 
-    const newCommentRef = db.collection("comments").doc();
+      await t.set(newCommentRef, newComment);
 
-    await t.set(newCommentRef, newComment);
+      await t.update(db.collection("posts").doc(postId), {
+        comments: admin.firestore.FieldValue.arrayUnion(
+          db.doc("/comments/" + newCommentRef.id)
+        ),
+      });
 
-    await t.update(db.collection("posts").doc(postId), {
-      comments: admin.firestore.FieldValue.arrayUnion(
-        db.doc("/comments/" + newCommentRef.id)
-      ),
-    });
-
-    await t.update(db.collection("users").doc(userId), {
-      comments: admin.firestore.FieldValue.arrayUnion(
-        db.doc("/comments/" + newCommentRef.id)
-      ),
+      await t.update(db.collection("users").doc(userId), {
+        comments: admin.firestore.FieldValue.arrayUnion(
+          db.doc("/comments/" + newCommentRef.id)
+        ),
+      });
     });
   } catch (err) {
+    console.log(err);
     return next();
   }
   res.json({ message: "comment added successfully" });
